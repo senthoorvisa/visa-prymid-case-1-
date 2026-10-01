@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useDemoAuth } from "@/components/auth-provider";
 import {
-  Activity, ArrowDownRight, ArrowRight, AudioLines, Check, ChevronDown,
+  Activity, ArrowDownRight, ArrowRight, AudioLines, Bell, Check, ChevronDown, ChevronUp,
   BriefcaseBusiness, CircleHelp, Clapperboard, Clock3, Disc3, FileMusic, Film, Filter,
-  Headphones, LayoutDashboard, ListMusic, LogOut, MessagesSquare, Pencil, Plus, Search,
+  Headphones, LayoutDashboard, ListMusic, LogOut, MessagesSquare, MoreHorizontal, Pencil, Plus, Search,
   Settings2, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, Users, X, RotateCw,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
@@ -44,6 +44,26 @@ const navItems: { id: Section; label: string; icon: IconComponent }[] = [
 const adminItems: { id: Section; label: string; icon: IconComponent }[] = [
   { id: "team", label: "Team & audit", icon: Users },
   { id: "settings", label: "Settings", icon: Settings2 },
+];
+const mobilePrimaryItems: { id: Section; label: string; icon: IconComponent }[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard },
+  { id: "catalogue", label: "Catalogue", icon: Clapperboard },
+  { id: "rights", label: "Rights", icon: ShieldCheck },
+  { id: "compilations", label: "Build", icon: ListMusic },
+  { id: "licensing", label: "Licensing", icon: BriefcaseBusiness },
+];
+const mobileMoreItems: { id: Section; label: string; icon: IconComponent }[] = [
+  { id: "usage", label: "Usage log", icon: Activity },
+  { id: "clients", label: "Client CRM", icon: Users },
+  { id: "community", label: "Community", icon: MessagesSquare },
+  { id: "insights", label: "Demand insights", icon: TrendingUp },
+  { id: "catalogue-setup", label: "Catalogue migration", icon: Upload },
+  { id: "holds", label: "Holds & conflicts", icon: Filter },
+  { id: "deals", label: "Quotes & licenses", icon: BriefcaseBusiness },
+  { id: "renewals", label: "Renewals & options", icon: Clock3 },
+  { id: "team", label: "Team & audit", icon: Users },
+  { id: "settings", label: "Settings", icon: Settings2 },
+  { id: "notifications", label: "Notification inbox", icon: Bell },
 ];
 
 function text(row: UiRow | null | undefined, key: string, fallback = "—") {
@@ -209,6 +229,7 @@ export function AppShell({ section, clientId, requestId, songId, postId, package
   const [statusFilter, setStatusFilter] = useState("all");
   const [builderOpen, setBuilderOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [editorKind, setEditorKind] = useState<EditorKind | null>(null);
   const [editing, setEditing] = useState<UiRow | null>(null);
   const [songFilters, setSongFilters] = useState({ genre: "", singer: "", language: "", year: "" });
@@ -459,7 +480,22 @@ export function AppShell({ section, clientId, requestId, songId, postId, package
       {section === "insights" && <InsightsPage />}
       {section === "notifications" && <NotificationsPage />}
       {section === "catalogue" && songId && <SongVersionPage songId={songId} />}</div>
-      <nav className="mobile-nav">{[...navItems, ...adminItems].map((item) => <Link key={item.id} href={`/${item.id}`} className={section === item.id ? "active" : ""}><item.icon /><span>{item.label === "Rights ledger" ? "Rights" : item.label === "Compilations" ? "Build" : item.label === "Dashboard" ? "Home" : item.label === "Catalogue" ? "Catalog" : item.label === "Team & audit" ? "Team" : item.label === "CRM · Clients" ? "CRM" : item.label}</span></Link>)}</nav>
+      <nav className="mobile-nav" aria-label="Main navigation">
+        {mobilePrimaryItems.map((item) => <Link key={item.id} href={`/${item.id}`} className={section === item.id ? "active" : ""} aria-current={section === item.id ? "page" : undefined}>
+          <item.icon aria-hidden="true" /><span>{item.label}</span>
+        </Link>)}
+        <button className={`mobile-more-trigger ${mobileMoreOpen || !mobilePrimaryItems.some((item) => item.id === section) ? "active" : ""}`} type="button" aria-expanded={mobileMoreOpen} aria-controls="mobile-more-menu" onClick={() => setMobileMoreOpen((open) => !open)}>
+          {mobileMoreOpen ? <ChevronUp aria-hidden="true" /> : <MoreHorizontal aria-hidden="true" />}<span>More</span>
+        </button>
+      </nav>
+      {mobileMoreOpen && <>
+        <button className="mobile-more-scrim" type="button" aria-label="Close navigation menu" onClick={() => setMobileMoreOpen(false)} />
+        <nav className="mobile-more-menu" id="mobile-more-menu" aria-label="More workspace sections">
+          {mobileMoreItems.map((item) => <Link key={item.id} href={`/${item.id}`} className={section === item.id ? "active" : ""} aria-current={section === item.id ? "page" : undefined} onClick={() => setMobileMoreOpen(false)}>
+            <item.icon aria-hidden="true" /><span>{item.label}</span>
+          </Link>)}
+        </nav>
+      </>}
     </main>{editorKind && <RecordEditor kind={editorKind} initial={editing} films={films} onClose={() => { setEditorKind(null); setEditing(null); }} onSave={(payload) => void saveRecord(payload)} busy={busy} />}{showImport && <ImportModal films={films} onClose={() => setShowImport(false)} onImport={(kind, data) => void doImport(kind, data)} busy={busy} />}{toast && <div className="toast" role="status">{toast}</div>}</div>;
 }
 
