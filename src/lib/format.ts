@@ -1,4 +1,4 @@
-export const sections = ["dashboard", "catalogue", "rights", "usage", "compilations", "settings", "team"] as const;
+export const sections = ["dashboard", "catalogue", "catalogue-setup", "rights", "usage", "compilations", "licensing", "holds", "deals", "renewals", "clients", "community", "insights", "notifications", "settings", "team"] as const;
 export type Section = (typeof sections)[number];
 
 export function titleCase(value: string) {

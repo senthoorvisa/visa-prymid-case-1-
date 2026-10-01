@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DemoAuthProvider } from "@/components/auth-provider";
+import { ShowcaseProvider } from "@/components/showcase-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><DemoAuthProvider>{children}</DemoAuthProvider></body></html>;
+  return <html lang="en"><body><DemoAuthProvider><ShowcaseProvider>{children}</ShowcaseProvider></DemoAuthProvider></body></html>;
 }

@@ -6,14 +6,21 @@ import type { Session } from "@supabase/supabase-js";
 import { useDemoAuth } from "@/components/auth-provider";
 import {
   Activity, ArrowDownRight, ArrowRight, AudioLines, Check, ChevronDown,
-  CircleHelp, Clapperboard, Clock3, Disc3, FileMusic, Film, Filter,
-  Headphones, LayoutDashboard, ListMusic, LogOut, Pencil, Plus, Search,
-  Settings2, ShieldCheck, Sparkles, Trash2, Upload, Users, X, RotateCw,
+  BriefcaseBusiness, CircleHelp, Clapperboard, Clock3, Disc3, FileMusic, Film, Filter,
+  Headphones, LayoutDashboard, ListMusic, LogOut, MessagesSquare, Pencil, Plus, Search,
+  Settings2, ShieldCheck, Sparkles, Trash2, TrendingUp, Upload, Users, X, RotateCw,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { SupabaseAuthService } from "@/lib/auth-service";
 import { formatDate, initials, titleCase, type Section } from "@/lib/format";
 import type { ProfileRole } from "@/types/database";
+import { makeDemoWorkspace, getDemoEligibility, getDemoRows } from "@/lib/showcase-data";
+import { NotificationCenter, NotificationsPage } from "@/components/notification-center";
+import { CRMPage, ClientDetailPage } from "@/components/crm-pages";
+import { CommunityPage, CommunityPostPage } from "@/components/community-pages";
+import { LicensingInboxPage, LicensingRequestPage, HoldsPage, DealsPage, RenewalsPage, BuyerPackagePage } from "@/components/licensing-pages";
+import { InsightsPage } from "@/components/insights-page";
+import { CatalogueSetupPage, SongVersionPage } from "@/components/catalogue-pages";
 
 type UiRow = Record<string, unknown>;
 type EditorKind = "film" | "song" | "right";
@@ -29,6 +36,10 @@ const navItems: { id: Section; label: string; icon: IconComponent }[] = [
   { id: "rights", label: "Rights ledger", icon: ShieldCheck },
   { id: "usage", label: "Usage log", icon: Activity },
   { id: "compilations", label: "Compilations", icon: ListMusic },
+  { id: "licensing", label: "Licensing", icon: BriefcaseBusiness },
+  { id: "clients", label: "CRM · Clients", icon: Users },
+  { id: "community", label: "Community", icon: MessagesSquare },
+  { id: "insights", label: "Insights", icon: TrendingUp },
 ];
 const adminItems: { id: Section; label: string; icon: IconComponent }[] = [
   { id: "team", label: "Team & audit", icon: Users },
@@ -84,21 +95,30 @@ function AuthPanel({ demoMode, onSignedIn }: { demoMode: boolean; onSignedIn: ()
       setError(signInError instanceof Error ? signInError.message : "Sign in failed.");
     } finally { setLoading(false); }
   };
-  return <main className="login-screen"><section className="login-card"><div className="login-brand"><div className="brand-mark"><LayersMark /></div><span className="brand-name">pyramid</span></div><p className="eyebrow">{demoMode ? "Sample preview" : "Rights workspace"}</p><h1>{demoMode ? "Enter the workspace" : "Welcome back"}</h1><p className="subheading">{demoMode ? "Preview the blank workspace. Supabase can be connected later." : "Sign in to your shared film and music catalogue."}</p>{error && <div className="error-banner">{error}</div>}<form className="login-fields" onSubmit={submit}><div className="form-field"><label htmlFor="email">Email address</label><input id="email" autoComplete="email" type={demoMode ? "text" : "email"} value={email} onChange={(event) => setEmail(event.target.value)} required={!demoMode} placeholder={demoMode ? "Optional in sample mode" : undefined} /></div><div className="form-field"><label htmlFor="password">Password</label><input id="password" autoComplete={demoMode ? "off" : "current-password"} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required={!demoMode} placeholder={demoMode ? "Optional in sample mode" : undefined} /></div><button className="button" type="submit" disabled={loading}>{loading ? "Opening…" : demoMode ? "Sign in to sample" : "Sign in"}<ArrowRight size={13} /></button></form>{demoMode && <button className="button secondary" style={{ width: "100%", marginTop: 8 }} disabled={loading} onClick={() => void demoAuth.continueAsGuest()}>Continue as guest</button>}<p className="login-footnote">{demoMode ? "Demo only: no real authentication. This session stays in memory and resets when you refresh." : "Access is managed by your Pyramid workspace administrator."}</p></section></main>;
+  return <main className="login-screen"><section className="login-card"><div className="login-brand"><div className="brand-mark"><LayersMark /></div><span className="brand-name">pyramid</span></div><p className="eyebrow">{demoMode ? "Sample preview" : "Rights workspace"}</p><h1>{demoMode ? "Enter the workspace" : "Welcome back"}</h1><p className="subheading">{demoMode ? "Explore a sample catalogue, licensing workflow, CRM, and community. Supabase can be connected later." : "Sign in to your shared film and music catalogue."}</p>{error && <div className="error-banner">{error}</div>}<form className="login-fields" onSubmit={submit}><div className="form-field"><label htmlFor="email">Email address</label><input id="email" autoComplete="email" type={demoMode ? "text" : "email"} value={email} onChange={(event) => setEmail(event.target.value)} required={!demoMode} placeholder={demoMode ? "Optional in sample mode" : undefined} /></div><div className="form-field"><label htmlFor="password">Password</label><input id="password" autoComplete={demoMode ? "off" : "current-password"} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required={!demoMode} placeholder={demoMode ? "Optional in sample mode" : undefined} /></div><button className="button" type="submit" disabled={loading}>{loading ? "Opening…" : demoMode ? "Sign in to sample" : "Sign in"}<ArrowRight size={13} /></button></form>{demoMode && <button className="button secondary" style={{ width: "100%", marginTop: 8 }} disabled={loading} onClick={() => void demoAuth.continueAsGuest()}>Continue as guest</button>}<p className="login-footnote">{demoMode ? "Demo only: no real authentication. Sample changes stay in memory and reset when you refresh." : "Access is managed by your Pyramid workspace administrator."}</p></section></main>;
 }
 
 function PageHeading({ section, onCreate, canWrite, builderOpen, onToggleBuilder }: { section: Section; onCreate: (kind: EditorKind) => void; canWrite: boolean; builderOpen: boolean; onToggleBuilder: () => void }) {
   const info: Record<Section, { title: string; eyebrow: string; sub: string }> = {
     dashboard: { title: "Rights at a glance", eyebrow: "Workspace overview", sub: "A clear view of what your catalogue owns and what needs attention." },
     catalogue: { title: "Catalogue", eyebrow: "Films & music", sub: "Keep film and song metadata tidy in one shared catalogue." },
+    "catalogue-setup": { title: "Catalogue migration", eyebrow: "Import & compare", sub: "Map workbook columns, resolve data issues, and review changes before import." },
     rights: { title: "Rights ledger", eyebrow: "Licenses & territories", sub: "Track ownership windows and the dates your team needs to act on." },
     usage: { title: "Usage log", eyebrow: "Compilation history", sub: "Every song placement, with its compilation and use date." },
     compilations: { title: builderOpen ? "Build a compilation" : "Compilations", eyebrow: "Song reuse & clearances", sub: builderOpen ? "Choose a territory, check eligibility, and save a cleared selection." : "Review past releases or build the next compilation from cleared songs." },
+    licensing: { title: "Licensing requests", eyebrow: "Request inbox", sub: "Manage buyer briefs, candidate songs, rights checks, and quotes." },
+    holds: { title: "Holds & conflicts", eyebrow: "Offer coordination", sub: "Track temporary holds by song, territory, media, and end date." },
+    deals: { title: "Quotes & licenses", eyebrow: "Commercial workflow", sub: "Follow a shortlist from quote through a recorded customer license." },
+    renewals: { title: "Renewals & options", eyebrow: "Follow-up calendar", sub: "Keep catalogue-rights expiries and customer-license dates distinct." },
+    clients: { title: "Client relationship management", eyebrow: "Accounts & contacts", sub: "See client context, licensing opportunities, and follow-up activity together." },
+    community: { title: "Pyramid community", eyebrow: "Peer workspace", sub: "Explore sample discussions, member ideas, and learning events." },
+    insights: { title: "Demand & opportunities", eyebrow: "Catalogue insights", sub: "See what buyers asked for and where interest did not progress." },
+    notifications: { title: "Notification inbox", eyebrow: "Updates & suggestions", sub: "Keep reminders, ideas, and lower-priority workspace updates in one place." },
     settings: { title: "Workspace settings", eyebrow: "Policies & preferences", sub: "Set the rights warning window and song reuse cooldown for your team." },
     team: { title: "Team & audit", eyebrow: "Access & activity", sub: "Review workspace roles and see changes recorded in the audit trail." },
   };
   const { title, eyebrow, sub } = info[section];
-  const action = section === "catalogue" ? <button className="button" onClick={() => onCreate("film")} disabled={!canWrite}><Plus size={13} />Add film</button>
+  const action = section === "catalogue" ? <><Link href="/catalogue-setup" className="button secondary"><Upload size={13} />Import & compare</Link><button className="button" onClick={() => onCreate("film")} disabled={!canWrite}><Plus size={13} />Add film</button></>
     : section === "rights" ? <button className="button" onClick={() => onCreate("right")} disabled={!canWrite}><Plus size={13} />Add rights</button>
     : section === "compilations" ? <button className="button" onClick={onToggleBuilder}><Plus size={13} />{builderOpen ? "View compilations" : "New compilation"}</button> : null;
   return <div className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="subheading">{sub}</p></div><div style={{ display: "flex", gap: 8 }}>{section === "catalogue" && <button className="button secondary" onClick={() => onCreate("song")} disabled={!canWrite}><Plus size={13} />Add song</button>}{action}</div></div>;
@@ -166,7 +186,7 @@ function ImportModal({ films, onClose, onImport, busy }: { films: UiRow[]; onClo
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="import-title"><div className="modal-head"><div><h2 id="import-title">Import catalogue workbook</h2><p>Choose a sheet, preview rows, then confirm before writing to Postgres.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={15} /></button></div><div className="form-grid"><div className="form-field"><label htmlFor="import-kind">Map this sheet to</label><select id="import-kind" value={kind} onChange={(event) => setKind(event.target.value as "films" | "songs" | "rights")}><option value="films">Films</option><option value="songs">Songs</option><option value="rights">Rights</option></select></div><div className="form-field"><label htmlFor="workbook">Workbook</label><input id="workbook" type="file" accept=".xlsx" onChange={(event) => void parseFile(event.target.files?.[0])} /></div>{worksheets.length > 0 && <div className="form-field full"><label htmlFor="sheet">Worksheet</label><select id="sheet" value={selectedSheet} onChange={(event) => setSelectedSheet(event.target.value)}>{worksheets.map((sheet) => <option key={sheet.name}>{sheet.name}</option>)}</select></div>}</div>{message && <p className="subheading">{message}</p>}{rows.length > 0 && <><p className="subheading">{validRows.length} valid · {badRows} skipped. Required and recognized columns: {columnHint}. {kind === "rights" && "Rights rows need a matching film already in the catalogue."}</p><div className="table-wrap" style={{ maxHeight: 230 }}><table><thead><tr><th>Title</th><th>{kind === "films" ? "Year" : kind === "rights" ? "Owner" : "Singer"}</th><th>Validation</th></tr></thead><tbody>{rows.slice(0, 12).map((row, index) => { const valid = validRows.includes(row); return <tr key={index}><td>{text(row, "title", "Missing title")}</td><td>{text(row, kind === "films" ? "release_year" : kind === "rights" ? "owner" : "singer")}</td><td><Status value={valid ? "active" : "expired"} /></td></tr>; })}</tbody></table></div></>}<div className="modal-actions"><button className="button secondary" onClick={onClose}>Cancel</button><button className="button" disabled={busy || mapped.length === 0} onClick={() => onImport(kind, mapped)}><Upload size={13} />{busy ? "Importing…" : `Confirm ${mapped.length} rows`}</button></div></section></div>;
 }
 
-export function AppShell({ section }: { section: Section }) {
+export function AppShell({ section, clientId, requestId, songId, postId, packagePreview = false }: { section: Section; clientId?: string; requestId?: string; songId?: string; postId?: string; packagePreview?: boolean }) {
   const supabase = getSupabase();
   const demoAuth = useDemoAuth();
   const demoUser = demoAuth.user;
@@ -196,7 +216,7 @@ export function AppShell({ section }: { section: Section }) {
   const [dashboardCounts, setDashboardCounts] = useState({ films: 0, songs: 0, rights: 0, compilations: 0, active: 0, expiring: 0, expired: 0 });
   const canWrite = role === "admin" || role === "editor";
   const demoMode = !supabase;
-  const title = section === "compilations" && builderOpen ? "Build a compilation" : titleCase(section === "rights" ? "rights ledger" : section === "team" ? "team & audit" : section);
+  const title = section === "compilations" && builderOpen ? "Build a compilation" : section === "catalogue-setup" ? "Catalogue migration" : section === "clients" ? "Client relationship management" : section === "notifications" ? "Notification inbox" : section === "team" ? "Team & audit" : titleCase(section === "rights" ? "rights ledger" : section);
 
   useEffect(() => {
     if (!supabase) return;
@@ -207,9 +227,38 @@ export function AppShell({ section }: { section: Section }) {
   }, [supabase]);
 
   useEffect(() => {
-    if (!supabase || !session?.user) return;
+    if (!supabase) {
+      if (!demoUser) return;
+      let ignore = false;
+      queueMicrotask(() => {
+        if (ignore) return;
+        const workspace = makeDemoWorkspace();
+        setError("");
+        setFilms(workspace.films);
+        setTerritories(workspace.territories);
+        setTerritory((current) => current || workspace.territories[0]);
+        setRows(getDemoRows(section, workspace));
+        setCatalogueTotal(workspace.films.length);
+        setDashboardCounts({
+          films: workspace.films.length,
+          songs: workspace.songs.length,
+          compilations: workspace.compilations.length,
+          rights: workspace.rights.length,
+          active: workspace.rights.filter((row) => row.status === "active" || row.status === "perpetual").length,
+          expiring: workspace.rights.filter((row) => row.status === "expiring_soon").length,
+          expired: workspace.rights.filter((row) => row.status === "expired").length,
+        });
+      });
+      return () => { ignore = true; };
+    }
+    if (!session?.user) return;
     let ignore = false;
     const load = async () => {
+      if (["catalogue-setup", "licensing", "holds", "deals", "renewals", "clients", "community", "insights", "notifications"].includes(section)) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true); setError("");
       const [{ data: profile }, { data: filmData }, { data: territoryData }] = await Promise.all([
         supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle(),
@@ -263,19 +312,30 @@ export function AppShell({ section }: { section: Section }) {
         if (result.error) setError(result.error.message);
         if (result.data) setSettingsForm({ expiring_soon_days: String(result.data.expiring_soon_days), song_reuse_cooldown_days: String(result.data.song_reuse_cooldown_days) });
         setRows(result.data ? [result.data as unknown as UiRow] : []);
-      } else {
+      } else if (section === "team") {
         const result = await supabase.from("profiles").select("id,email,role,created_at").order("created_at", { ascending: true }).limit(500);
         if (result.error) setError(result.error.message);
         setRows((result.data ?? []) as unknown as UiRow[]);
+      } else {
+        setRows([]);
       }
       if (!ignore) setLoading(false);
     };
     void load();
     return () => { ignore = true; };
-  }, [supabase, session, section, builderOpen, query, cataloguePage, territory]);
+  }, [supabase, session, demoUser, section, builderOpen, query, cataloguePage, territory]);
 
   useEffect(() => {
-    if (!supabase || !session?.user || section !== "compilations" || !builderOpen || !territory) return;
+    if (section !== "compilations" || !builderOpen || !territory) return;
+    if (!supabase) {
+      if (!demoUser) return;
+      let ignore = false;
+      queueMicrotask(() => {
+        if (!ignore) setEligibleRows(getDemoEligibility(territory, songFilters));
+      });
+      return () => { ignore = true; };
+    }
+    if (!session?.user) return;
     let ignore = false;
     const loadEligible = async () => {
       setLoading(true); setError("");
@@ -292,7 +352,7 @@ export function AppShell({ section }: { section: Section }) {
     };
     void loadEligible();
     return () => { ignore = true; };
-  }, [supabase, session, section, builderOpen, territory, songFilters]);
+  }, [supabase, session, demoUser, section, builderOpen, territory, songFilters]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -379,18 +439,39 @@ export function AppShell({ section }: { section: Section }) {
   const accountEmail = session?.user.email ?? demoUser?.email ?? "Workspace user";
   const accountName = session?.user.user_metadata?.full_name ?? accountEmail.split("@")[0];
 
-  return <div className="shell"><aside className="sidebar"><Brand /><button className="workspace-switch"><span className="workspace-avatar">PR</span><span className="workspace-copy"><span className="workspace-title">Pyramid Rights</span><span className="workspace-subtitle">Workspace</span></span><ChevronDown size={13} color="#969c97" /></button><p className="nav-caption">Workspace</p><nav className="nav-list">{navItems.map((item) => navLink(item))}</nav><p className="nav-caption" style={{ marginTop: 25 }}>Manage</p><nav className="nav-list">{adminItems.map((item) => navLink(item))}</nav><div className="sidebar-bottom"><div className="help-card"><CircleHelp size={15} color="#7b8766" /><strong>Need a hand?</strong><p>Learn how rights windows and song eligibility work.</p></div><div className="account-row"><span className="account-avatar">{initials(accountEmail)}</span><span className="account-copy"><span className="account-name">{accountName}</span><span className="account-email">{accountEmail}</span></span><button className="icon-button" title="Sign out" onClick={signOut}><LogOut size={14} /></button></div></div></aside>
-    <main className="main"><header className="topbar"><div className="mobile-head"><div className="brand-mark"><LayersMark /></div><strong>pyramid</strong></div><div className="breadcrumbs"><span>Workspace</span><ArrowRight size={11} /><strong>{title}</strong></div><div className="topbar-actions"><label className="search-trigger" aria-label="Search workspace"><Search size={13} /><span>Search anything</span><kbd>⌘ K</kbd><input style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} tabIndex={-1} value="" readOnly /></label><button className="top-icon" title="Reload data" onClick={() => window.location.reload()}><RotateCw size={14} /></button><button className="top-icon" title="Sign out" onClick={signOut}><LogOut size={14} /></button></div></header>
-      <div className="content"><PageHeading {...headingProps} />{demoMode && <div className="setup-banner"><Sparkles size={15} /><div><strong>Sample preview · no backend connected</strong><p>This workspace is intentionally blank. Demo sign-in is temporary, no data is saved, and Supabase can be connected later.</p></div></div>}{error && <div className="error-banner">{error}</div>}
-      {section === "dashboard" && <Dashboard counts={dashboardCounts} rows={rows} loading={loading} />}
-      {section === "catalogue" && <Catalogue rows={filteredRows} query={query} setQuery={(value) => { setCataloguePage(0); setQuery(value); }} loading={loading} canWrite={canWrite} page={cataloguePage} total={catalogueTotal} onPage={setCataloguePage} onImport={() => setShowImport(true)} onEdit={(row, kind) => { setEditing(row); setEditorKind(kind); }} onDelete={(row) => void deleteRecord("films", row)} onDeleteSong={(row) => void deleteRecord("songs", row)} onAddSong={() => { setEditing(null); setEditorKind("song"); }} />}
+  return <div className="shell"><aside className="sidebar"><Brand /><button className="workspace-switch"><span className="workspace-avatar">PR</span><span className="workspace-copy"><span className="workspace-title">Pyramid Rights</span><span className="workspace-subtitle">Workspace</span></span><ChevronDown size={13} color="#969c97" /></button><div className="sidebar-nav-scroll"><p className="nav-caption">Workspace</p><nav className="nav-list">{navItems.map((item) => navLink(item))}</nav><p className="nav-caption" style={{ marginTop: 25 }}>Manage</p><nav className="nav-list">{adminItems.map((item) => navLink(item))}</nav></div><div className="sidebar-bottom"><div className="help-card"><CircleHelp size={15} color="#7b8766" /><strong>Need a hand?</strong><p>Learn how rights windows and song eligibility work.</p><Link href="/community" className="help-card-link">Explore community <ArrowRight size={11} /></Link></div><div className="account-row"><span className="account-avatar">{initials(accountEmail)}</span><span className="account-copy"><span className="account-name">{accountName}</span><span className="account-email">{accountEmail}</span></span><button className="icon-button" title="Sign out" onClick={signOut}><LogOut size={14} /></button></div></div></aside>
+    <main className="main"><header className="topbar"><div className="mobile-head"><div className="brand-mark"><LayersMark /></div><strong>pyramid</strong></div><div className="breadcrumbs"><span>Workspace</span><ArrowRight size={11} /><strong>{title}</strong></div><div className="topbar-actions"><label className="search-trigger" aria-label="Search workspace"><Search size={13} /><span>Search anything</span><kbd>⌘ K</kbd><input style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} tabIndex={-1} value="" readOnly /></label><NotificationCenter /><button className="top-icon" title="Reload data" onClick={() => window.location.reload()}><RotateCw size={14} /></button><button className="top-icon" title="Sign out" onClick={signOut}><LogOut size={14} /></button></div></header>
+      <div className="content"><PageHeading {...headingProps} />{demoMode && <div className="setup-banner"><Sparkles size={15} /><div><strong>Sample preview · no backend connected</strong><p>Illustrative catalogue, CRM, licensing, community, and notification records are included. Changes stay in memory and reset when you refresh.</p></div></div>}{error && <div className="error-banner">{error}</div>}
+      {section === "dashboard" && <><ModuleLauncher /><Dashboard counts={dashboardCounts} rows={rows} loading={loading} /></>}
+      {section === "catalogue" && !songId && <Catalogue rows={filteredRows} query={query} setQuery={(value) => { setCataloguePage(0); setQuery(value); }} loading={loading} canWrite={canWrite} page={cataloguePage} total={catalogueTotal} onPage={setCataloguePage} onImport={() => setShowImport(true)} onEdit={(row, kind) => { setEditing(row); setEditorKind(kind); }} onDelete={(row) => void deleteRecord("films", row)} onDeleteSong={(row) => void deleteRecord("songs", row)} onAddSong={() => { setEditing(null); setEditorKind("song"); }} />}
       {section === "rights" && <Rights rows={filteredRows} query={query} setQuery={setQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} loading={loading} canWrite={canWrite} onEdit={(row) => { setEditing(row); setEditorKind("right"); }} onDelete={(row) => void deleteRecord("rights", row)} />}
       {section === "usage" && <Usage rows={filteredRows} query={query} setQuery={setQuery} loading={loading} canWrite={canWrite} onCorrect={(row) => { const nextDate = window.prompt("Correct the use date (YYYY-MM-DD)", text(row, "added_at").slice(0, 10)); if (nextDate && supabase) void supabase.from("compilation_items").update({ added_at: nextDate } as never).eq("id", text(row, "id")).then(({ error: updateError }) => { if (updateError) setError(updateError.message); else window.location.reload(); }); }} />}
       {section === "compilations" && (builderOpen ? <Builder rows={eligibleRows} loading={loading} territory={territory} setTerritory={setTerritory} territories={territories} selectedSongs={selectedSongs} setSelectedSongs={setSelectedSongs} filters={songFilters} setFilters={setSongFilters} canWrite={canWrite} onSave={() => void saveCompilation()} busy={busy} /> : <Compilations rows={filteredRows} query={query} setQuery={setQuery} loading={loading} onBuild={() => setBuilderOpen(true)} />)}
       {section === "settings" && <Settings rows={rows} form={settingsForm} setForm={setSettingsForm} role={role} busy={busy} onSave={saveSettings} />}
-      {section === "team" && <Team rows={filteredRows} query={query} setQuery={setQuery} role={role} loading={loading} onRoleChange={(id, nextRole) => void updateRole(id, nextRole)} />}</div>
-      <nav className="mobile-nav">{[...navItems, ...adminItems].map((item) => <Link key={item.id} href={`/${item.id}`} className={section === item.id ? "active" : ""}><item.icon /><span>{item.label === "Rights ledger" ? "Rights" : item.label === "Compilations" ? "Build" : item.label === "Dashboard" ? "Home" : item.label === "Catalogue" ? "Catalog" : item.label === "Team & audit" ? "Team" : item.label}</span></Link>)}</nav>
+      {section === "team" && <Team rows={filteredRows} query={query} setQuery={setQuery} role={role} loading={loading} onRoleChange={(id, nextRole) => void updateRole(id, nextRole)} />}
+      {section === "catalogue-setup" && <CatalogueSetupPage />}
+      {section === "licensing" && (packagePreview && requestId ? <BuyerPackagePage requestId={requestId} /> : requestId ? <LicensingRequestPage requestId={requestId} /> : <LicensingInboxPage />)}
+      {section === "holds" && <HoldsPage />}
+      {section === "deals" && <DealsPage />}
+      {section === "renewals" && <RenewalsPage />}
+      {section === "clients" && (clientId ? <ClientDetailPage clientId={clientId} /> : <CRMPage />)}
+      {section === "community" && (postId ? <CommunityPostPage postId={postId} /> : <CommunityPage />)}
+      {section === "insights" && <InsightsPage />}
+      {section === "notifications" && <NotificationsPage />}
+      {section === "catalogue" && songId && <SongVersionPage songId={songId} />}</div>
+      <nav className="mobile-nav">{[...navItems, ...adminItems].map((item) => <Link key={item.id} href={`/${item.id}`} className={section === item.id ? "active" : ""}><item.icon /><span>{item.label === "Rights ledger" ? "Rights" : item.label === "Compilations" ? "Build" : item.label === "Dashboard" ? "Home" : item.label === "Catalogue" ? "Catalog" : item.label === "Team & audit" ? "Team" : item.label === "CRM · Clients" ? "CRM" : item.label}</span></Link>)}</nav>
     </main>{editorKind && <RecordEditor kind={editorKind} initial={editing} films={films} onClose={() => { setEditorKind(null); setEditing(null); }} onSave={(payload) => void saveRecord(payload)} busy={busy} />}{showImport && <ImportModal films={films} onClose={() => setShowImport(false)} onImport={(kind, data) => void doImport(kind, data)} busy={busy} />}{toast && <div className="toast" role="status">{toast}</div>}</div>;
+}
+
+function ModuleLauncher() {
+  const modules = [
+    { href: "/licensing", icon: BriefcaseBusiness, title: "Licensing inbox", detail: "Buyer requests and quotes" },
+    { href: "/catalogue-setup", icon: Upload, title: "Import & compare", detail: "Review a sample workbook" },
+    { href: "/clients", icon: Users, title: "Client CRM", detail: "Accounts and follow-ups" },
+    { href: "/community", icon: MessagesSquare, title: "Community", detail: "Discussions and events" },
+    { href: "/insights", icon: TrendingUp, title: "Demand insights", detail: "What buyers are asking for" },
+  ];
+  return <section className="module-launcher"><div className="module-launcher-heading"><div><p className="eyebrow">Explore Pyramid</p><h2>Go to a workspace</h2></div><span>Sample pages ready to explore</span></div><div className="module-launcher-grid">{modules.map((module) => <Link href={module.href} className="module-launcher-card" key={module.href}><span><module.icon size={15} /></span><strong>{module.title}</strong><small>{module.detail}</small><ArrowRight size={13} /></Link>)}</div></section>;
 }
 
 function Dashboard({ counts, rows, loading }: { counts: Record<string, number>; rows: UiRow[]; loading: boolean }) {
@@ -400,7 +481,7 @@ function Dashboard({ counts, rows, loading }: { counts: Record<string, number>; 
 
 function Catalogue({ rows, query, setQuery, loading, canWrite, page, total, onPage, onImport, onEdit, onDelete, onDeleteSong, onAddSong }: { rows: UiRow[]; query: string; setQuery: (value: string) => void; loading: boolean; canWrite: boolean; page: number; total: number; onPage: (value: number) => void; onImport: () => void; onEdit: (row: UiRow, kind: EditorKind) => void; onDelete: (row: UiRow) => void; onDeleteSong: (row: UiRow) => void; onAddSong: () => void }) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  return <section className="panel"><div className="toolbar"><div className="input-wrap"><Search size={13} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search film titles…" /></div><button className="button secondary" onClick={onImport} disabled={!canWrite}><Upload size={12} />Import workbook</button><span style={{ marginLeft: "auto", color: "#9ba09b", fontSize: 9 }}>{total} films</span></div>{rows.length ? <><div className="table-wrap"><table><thead><tr><th>Film title</th><th>Year</th><th>Language</th><th>Genre</th><th>Songs</th><th>Actions</th></tr></thead><tbody>{rows.map((row) => { const songs = relationList(row, "songs"); const id = text(row, "id"); return <FragmentRow key={id}><tr><td><button className="cell-title" style={{ padding: 0, border: 0, background: "none" }} onClick={() => setExpanded(expanded === id ? null : id)}>{text(row, "title")}</button><span className="cell-subtitle">{text(row, "synopsis", "Film catalogue record")}</span></td><td>{text(row, "release_year")}</td><td>{text(row, "language")}</td><td>{text(row, "genre")}</td><td><span className="status neutral">{songs.length} songs</span></td><td><button className="icon-button" title="Edit film" disabled={!canWrite} onClick={() => onEdit(row, "film")}><Pencil size={12} /></button><button className="icon-button" title="Add song" disabled={!canWrite} onClick={onAddSong}><Plus size={13} /></button><button className="icon-button" title="Delete film" disabled={!canWrite} onClick={() => onDelete(row)}><Trash2 size={12} /></button></td></tr>{expanded === id && <tr><td colSpan={6} style={{ whiteSpace: "normal", background: "#fbfcf9" }}><strong style={{ color: "#4c554b", fontSize: 9 }}>Songs in this film</strong><div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>{songs.length ? songs.map((song) => <div key={text(song, "id")} className="status neutral" style={{ gap: 6 }}><span>{text(song, "title")} · {text(song, "singer", "Singer not set")}</span><button title="Edit song" disabled={!canWrite} onClick={() => onEdit(song, "song")}><Pencil size={10} /></button><button title="Delete song" disabled={!canWrite} onClick={() => onDeleteSong(song)}><Trash2 size={10} /></button></div>) : <span className="muted" style={{ fontSize: 9 }}>No songs linked yet.</span>}</div></td></tr>}</FragmentRow>; })}</tbody></table></div><div className="toolbar" style={{ justifyContent: "space-between", borderBottom: 0, borderTop: "1px solid #eff0ed" }}><span className="muted" style={{ fontSize: 9 }}>Showing {page * 25 + 1}–{Math.min(page * 25 + rows.length, total)} of {total}</span><div style={{ display: "flex", gap: 6 }}><button className="button secondary" disabled={page === 0} onClick={() => onPage(page - 1)}>Previous</button><button className="button secondary" disabled={(page + 1) * 25 >= total} onClick={() => onPage(page + 1)}>Next</button></div></div></> : <EmptyState icon={Film} title={loading ? "Loading catalogue…" : "No films in the catalogue yet"} detail={loading ? "Fetching shared records from Postgres." : "Add a film or import rows from your Excel workbook. Songs can be linked to their parent film."} />}</section>;
+  return <section className="panel"><div className="toolbar"><div className="input-wrap"><Search size={13} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search film titles…" /></div><button className="button secondary" onClick={onImport} disabled={!canWrite}><Upload size={12} />Import workbook</button><span style={{ marginLeft: "auto", color: "#9ba09b", fontSize: 9 }}>{total} films</span></div>{rows.length ? <><div className="table-wrap"><table><thead><tr><th>Film title</th><th>Year</th><th>Language</th><th>Genre</th><th>Songs</th><th>Actions</th></tr></thead><tbody>{rows.map((row) => { const songs = relationList(row, "songs"); const id = text(row, "id"); return <FragmentRow key={id}><tr><td><button className="cell-title" style={{ padding: 0, border: 0, background: "none" }} onClick={() => setExpanded(expanded === id ? null : id)}>{text(row, "title")}</button><span className="cell-subtitle">{text(row, "synopsis", "Film catalogue record")}</span></td><td>{text(row, "release_year")}</td><td>{text(row, "language")}</td><td>{text(row, "genre")}</td><td><span className="status neutral">{songs.length} songs</span></td><td><button className="icon-button" title="Edit film" disabled={!canWrite} onClick={() => onEdit(row, "film")}><Pencil size={12} /></button><button className="icon-button" title="Add song" disabled={!canWrite} onClick={onAddSong}><Plus size={13} /></button><button className="icon-button" title="Delete film" disabled={!canWrite} onClick={() => onDelete(row)}><Trash2 size={12} /></button></td></tr>{expanded === id && <tr><td colSpan={6} style={{ whiteSpace: "normal", background: "#fbfcf9" }}><strong style={{ color: "#4c554b", fontSize: 9 }}>Songs in this film</strong><div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>{songs.length ? songs.map((song) => <div key={text(song, "id")} className="status neutral" style={{ gap: 6 }}><Link className="showcase-song-link" href={`/catalogue/songs/${text(song, "id")}`}>{text(song, "title")} · {text(song, "singer", "Singer not set")}</Link><button title="Edit song" disabled={!canWrite} onClick={() => onEdit(song, "song")}><Pencil size={10} /></button><button title="Delete song" disabled={!canWrite} onClick={() => onDeleteSong(song)}><Trash2 size={10} /></button></div>) : <span className="muted" style={{ fontSize: 9 }}>No songs linked yet.</span>}</div></td></tr>}</FragmentRow>; })}</tbody></table></div><div className="toolbar" style={{ justifyContent: "space-between", borderBottom: 0, borderTop: "1px solid #eff0ed" }}><span className="muted" style={{ fontSize: 9 }}>Showing {page * 25 + 1}–{Math.min(page * 25 + rows.length, total)} of {total}</span><div style={{ display: "flex", gap: 6 }}><button className="button secondary" disabled={page === 0} onClick={() => onPage(page - 1)}>Previous</button><button className="button secondary" disabled={(page + 1) * 25 >= total} onClick={() => onPage(page + 1)}>Next</button></div></div></> : <EmptyState icon={Film} title={loading ? "Loading catalogue…" : "No films in the catalogue yet"} detail={loading ? "Fetching shared records from Postgres." : "Add a film or import rows from your Excel workbook. Songs can be linked to their parent film."} />}</section>;
 }
 
 function FragmentRow({ children }: { children: React.ReactNode }) { return <>{children}</>; }
@@ -420,7 +501,7 @@ function Compilations({ rows, query, setQuery, loading, onBuild }: { rows: UiRow
 function Builder({ rows, loading, territory, setTerritory, territories, selectedSongs, setSelectedSongs, filters, setFilters, canWrite, onSave, busy }: { rows: UiRow[]; loading: boolean; territory: string; setTerritory: (value: string) => void; territories: string[]; selectedSongs: string[]; setSelectedSongs: (value: string[]) => void; filters: { genre: string; singer: string; language: string; year: string }; setFilters: (value: { genre: string; singer: string; language: string; year: string }) => void; canWrite: boolean; onSave: () => void; busy: boolean }) {
   const toggle = (id: string) => setSelectedSongs(selectedSongs.includes(id) ? selectedSongs.filter((item) => item !== id) : [...selectedSongs, id]);
   const expiringSelection = rows.filter((row) => selectedSongs.includes(text(row, "song_id")) && text(row, "rights_status") === "expiring_soon");
-  return <><section className="panel"><div className="toolbar"><label style={{ color: "#767d78", fontSize: 9, fontWeight: 600 }}>Territory</label><select className="select" value={territory} onChange={(event) => setTerritory(event.target.value)}><option value="">Choose territory</option>{territories.map((place) => <option key={place}>{place}</option>)}</select><div className="input-wrap"><Filter size={12} /><input placeholder="Genre" value={filters.genre} onChange={(event) => setFilters({ ...filters, genre: event.target.value })} /></div><div className="input-wrap"><input placeholder="Singer" value={filters.singer} onChange={(event) => setFilters({ ...filters, singer: event.target.value })} /></div><div className="input-wrap"><input placeholder="Language" value={filters.language} onChange={(event) => setFilters({ ...filters, language: event.target.value })} /></div><div className="input-wrap" style={{ minWidth: 90, flex: "0 0 90px" }}><input placeholder="Year" value={filters.year} onChange={(event) => setFilters({ ...filters, year: event.target.value })} /></div></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th></th><th>Song</th><th>Film</th><th>Singer</th><th>Genre</th><th>Last used</th><th>Clearance</th><th>Eligibility</th></tr></thead><tbody>{rows.map((row) => { const id = text(row, "song_id"); const eligible = row.eligible === true; return <tr key={`${id}-${text(row, "territory")}`}><td className="checkbox-cell"><input type="checkbox" disabled={!eligible || !canWrite} checked={selectedSongs.includes(id)} onChange={() => toggle(id)} aria-label={`Select ${text(row, "song_title")}`} /></td><td><span className="cell-title">{text(row, "song_title")}</span></td><td>{text(row, "film_title")}</td><td>{text(row, "singer")}</td><td>{text(row, "genre")}</td><td>{formatDate(text(row, "last_used_at", ""))}</td><td>{row.rights_expiry_date ? <Status value={text(row, "rights_status")} /> : <Status value="expired" />}</td><td><span className={`status ${eligible ? "active" : "expired"}`}>{eligible ? "Eligible" : text(row, "reason", "Not eligible")}</span></td></tr>; })}</tbody></table></div> : <EmptyState icon={Sparkles} title={loading ? "Checking song rights…" : "No matching songs"} detail={loading ? "Eligibility is checked against the rights ledger and reuse policy in Postgres." : territories.length ? "Try another territory or broaden your filters. Songs with no active rights or a recent use include the reason here." : "Add rights records with territories before building a compilation."} />}</section>{selectedSongs.length > 0 && <div className="builder-summary"><div><strong>{selectedSongs.length} songs selected</strong><span>{expiringSelection.length ? `${expiringSelection.length} selected song${expiringSelection.length === 1 ? " has" : "s have"} rights expiring soon. Review expiry dates before release.` : "Postgres rechecks eligibility at save time."}</span></div><button className="button lime" disabled={busy || !canWrite} onClick={onSave}><Check size={13} />{busy ? "Saving…" : "Save compilation"}</button></div>}</>;
+  return <><section className="panel"><div className="toolbar"><label style={{ color: "#767d78", fontSize: 9, fontWeight: 600 }}>Territory</label><select className="select" value={territory} onChange={(event) => setTerritory(event.target.value)}><option value="">Choose territory</option>{territories.map((place) => <option key={place}>{place}</option>)}</select><div className="input-wrap"><Filter size={12} /><input placeholder="Genre" value={filters.genre} onChange={(event) => setFilters({ ...filters, genre: event.target.value })} /></div><div className="input-wrap"><input placeholder="Singer" value={filters.singer} onChange={(event) => setFilters({ ...filters, singer: event.target.value })} /></div><div className="input-wrap"><input placeholder="Language" value={filters.language} onChange={(event) => setFilters({ ...filters, language: event.target.value })} /></div><div className="input-wrap" style={{ minWidth: 90, flex: "0 0 90px" }}><input placeholder="Year" value={filters.year} onChange={(event) => setFilters({ ...filters, year: event.target.value })} /></div></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th></th><th>Song</th><th>Film</th><th>Singer</th><th>Genre</th><th>Last used</th><th>Clearance</th><th>Eligibility</th></tr></thead><tbody>{rows.map((row) => { const id = text(row, "song_id"); const eligible = row.eligible === true; return <tr key={`${id}-${text(row, "territory")}`}><td className="checkbox-cell"><input type="checkbox" disabled={!eligible || !canWrite} checked={selectedSongs.includes(id)} onChange={() => toggle(id)} aria-label={`Select ${text(row, "song_title")}`} /></td><td><span className="cell-title">{text(row, "song_title")}</span></td><td>{text(row, "film_title")}</td><td>{text(row, "singer")}</td><td>{text(row, "genre")}</td><td>{formatDate(text(row, "last_used_at", ""))}</td><td>{row.rights_status ? <Status value={text(row, "rights_status")} /> : <span className="status neutral">No record</span>}</td><td><span className={`status ${eligible ? "active" : "expired"}`}>{eligible ? "Eligible" : text(row, "reason", "Not eligible")}</span></td></tr>; })}</tbody></table></div> : <EmptyState icon={Sparkles} title={loading ? "Checking song rights…" : "No matching songs"} detail={loading ? "Eligibility is checked against the rights ledger and reuse policy in Postgres." : territories.length ? "Try another territory or broaden your filters. Songs with no active rights or a recent use include the reason here." : "Add rights records with territories before building a compilation."} />}</section>{selectedSongs.length > 0 && <div className="builder-summary"><div><strong>{selectedSongs.length} songs selected</strong><span>{expiringSelection.length ? `${expiringSelection.length} selected song${expiringSelection.length === 1 ? " has" : "s have"} rights expiring soon. Review expiry dates before release.` : "Postgres rechecks eligibility at save time."}</span></div><button className="button lime" disabled={busy || !canWrite} onClick={onSave}><Check size={13} />{busy ? "Saving…" : "Save compilation"}</button></div>}</>;
 }
 
 function Settings({ rows, form, setForm, role, busy, onSave }: { rows: UiRow[]; form: { expiring_soon_days: string; song_reuse_cooldown_days: string }; setForm: (value: { expiring_soon_days: string; song_reuse_cooldown_days: string }) => void; role: ProfileRole; busy: boolean; onSave: (event: React.FormEvent<HTMLFormElement>) => void }) {
